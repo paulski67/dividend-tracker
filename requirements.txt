@@ -1,0 +1,21 @@
+# Core data handling
+pandas==2.2.2
+numpy==1.26.4
+
+# HTTP / API calls (AlphaVantage, etc.)
+requests==2.32.3
+
+# MongoDB driver
+pymongo==4.6.3
+
+# Optional but commonly used for API key/env management
+python-dotenv==1.0.1
+
+# Scheduling (for daily/weekly jobs)
+schedule==1.2.2
+
+# Logging / utilities (safe modern baseline)
+certifi==2024.6.2
+urllib3==2.2.2
+charset-normalizer==3.3.2
+idna==3.7
