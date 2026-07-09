@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime
+import sys
 from utilities.logger import setup_logger
 from utilities.dividend_helper import (
     is_reit,
