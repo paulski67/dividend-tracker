@@ -68,7 +68,7 @@ def parse_date(date_string):
         return None
 
 #for checking reasonable divvy 
-def validate_dividend_record()(
+def validate_dividend_record(
     ticker,
     amount,
     previous_amount
@@ -184,16 +184,18 @@ for ticker in STOCK_TICKERS:
                 ]
             )
 
-            previous_amount = None
+            for i, dividend in enumerate(dividends):
 
-            if len(dividends) > 1:
-                previous_amount = safe_float(
-                    dividends[1].get("amount")
-                )
+                previous_amount = None
+
+                if i + 1 < len(dividends):
+                    previous_amount = safe_float(
+                        dividends[i + 1]["amount"]
+                    )
 
             validation_status = "valid"
 
-            if not validate_dividend_record()(
+            if not validate_dividend_record(
                 ticker,
                 amount,
                 previous_amount
