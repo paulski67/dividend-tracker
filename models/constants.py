@@ -4,6 +4,8 @@ DAILY_METRICS_COLLECTION = "daily_metrics"
 
 DIVIDEND_HISTORY_COLLECTION = "dividend_history"
 
+INCOME_STATEMENTS_COLLECTION = "income_statements"
+
 FREE_CASH_FLOW_COLLECTION = "free_cash_flow_metrics"
 
 DIVIDEND_ANALYSIS_COLLECTION = "dividend_analysis"

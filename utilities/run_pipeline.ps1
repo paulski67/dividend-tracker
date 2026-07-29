@@ -54,7 +54,7 @@ Write-Host "UTC Bucket : $utcBucket"
 switch ($day)
 {
     "Monday" {
-       & $python -m collectors.save_daily_metrics
+       & $python -m collectors.save_income_statements
     }
 
     "Tuesday" {
