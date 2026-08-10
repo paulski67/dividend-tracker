@@ -5,6 +5,7 @@ Build a simple portfolio scorecard from the latest
 weekly dividend safety scores.
 """
 import logging
+import sys
 from datetime import datetime
 
 from utilities.logger import setup_logger
@@ -55,7 +56,7 @@ for ticker in STOCK_TICKERS:
 
     latest_score = weekly_scores.find_one(
         {"ticker": ticker},
-        sort=[("created_at", -1)]
+        sort=[("run_date", -1)]
     )
 
     if not latest_score:
@@ -139,7 +140,7 @@ with open(report_file, "w") as report:
     for result in scorecard_results:
 
         last_ex_date = get_latest_ex_dividend_date(
-            ticker
+            result["ticker"]
         )
 
         report.write(
