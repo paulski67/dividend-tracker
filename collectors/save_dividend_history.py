@@ -157,7 +157,7 @@ for ticker in STOCK_TICKERS:
         
         logging.info(f"Processing {ticker}...")
         
-        for dividend in dividends:
+        for idx, dividend in enumerate(dividends):
 
             ex_date = parse_date(
                 dividend.get("ex_dividend_date")
@@ -170,28 +170,15 @@ for ticker in STOCK_TICKERS:
             if not ex_date or amount is None:
                 continue
 
-            # check for bogus data  a divvy jump that isn't
-            # reasonable
-            previous = collection.find_one(
-                {
-                    "ticker": ticker
-                },
-                sort=[
-                    (
-                        "ex_dividend_date",
-                        -1
-                    )
-                ]
-            )
+            # check for bogus data - a divvy jump that isn't
+            # reasonable. dividends[idx + 1] is the NEXT OLDER
+            # record for this same ticker (API returns newest first).
+            previous_amount = None
 
-            for i, dividend in enumerate(dividends):
-
-                previous_amount = None
-
-                if i + 1 < len(dividends):
-                    previous_amount = safe_float(
-                        dividends[i + 1]["amount"]
-                    )
+            if idx + 1 < len(dividends):
+                previous_amount = safe_float(
+                    dividends[idx + 1].get("amount")
+                )
 
             validation_status = "valid"
 
@@ -233,23 +220,44 @@ for ticker in STOCK_TICKERS:
 
                 "source": "alphavantage",
 
-                "created_at": datetime.utcnow(),
-                   
+                "updated_at": datetime.utcnow(),
+
                 "validation_status": validation_status
             }
 
             try:
 
-                collection.insert_one(document)
+                # Upsert on (ticker, ex_dividend_date) so reruns
+                # correct/refresh an existing record instead of
+                # creating a duplicate. Requires the unique index
+                # created by cleanup_dividend_history.py.
+                result = collection.update_one(
+                    {
+                        "ticker": ticker,
+                        "ex_dividend_date": ex_date
+                    },
+                    {
+                        "$set": document,
+                        "$setOnInsert": {
+                            "created_at": datetime.utcnow()
+                        }
+                    },
+                    upsert=True
+                )
+
                 #-------------------
                 # increment counters
                 #-------------------
-                
-                ticker_inserted += 1
-                total_inserted += 1
+
+                if result.upserted_id is not None:
+                    ticker_inserted += 1
+                    total_inserted += 1
+                else:
+                    ticker_duplicates += 1
+                    total_duplicates += 1
 
             except DuplicateKeyError:
-                
+
                 #-------------------
                 # increment counters
                 #-------------------

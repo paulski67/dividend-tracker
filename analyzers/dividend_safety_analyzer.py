@@ -144,7 +144,8 @@ def calculate_score(ticker):
         payout_ratio = (
             calc_reit_payout_ratio(
                 annual_dividends_paid,
-                ttm_fcf
+                ttm_fcf,
+                metrics.get("shares_outstanding")
             )
         )
         
@@ -247,7 +248,7 @@ def calculate_score(ticker):
     # Dividend Yield
     # -------------------------------------
     dividend_yield = safe_float(
-        metrics.get("DividendYield", 0)
+        metrics.get("dividend_yield", 0)
     )
 
     # Some valid equities have no dividend.

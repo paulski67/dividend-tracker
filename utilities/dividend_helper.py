@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta
+
 from models.mongo import get_collection
 #from models.database import (
 #    get_collection
@@ -16,10 +18,24 @@ free_cash_flow_metrics = get_collection(
     FREE_CASH_FLOW_COLLECTION
 )
 
-def get_recent_dividends(ticker, limit=8):
+def get_recent_dividends(ticker, limit=8, valid_only=True):
+    """
+    valid_only=True (default) excludes records tagged "suspect"
+    (magnitude jump that looks wrong) or "distribution" (spinoff /
+    special distribution masquerading as a dividend) by
+    save_dividend_history.py. Cut detection, growth detection, and
+    annual-dividends-paid should all be computed from real cash
+    dividends only - a spinoff payout showing up as a "cut" or a
+    "raise" would be a false signal either way.
+    """
+
+    query = {"ticker": ticker}
+
+    if valid_only:
+        query["validation_status"] = "valid"
 
     dividends = dividend_history.find(
-        {"ticker": ticker}
+        query
     ).sort(
         "ex_dividend_date",
         -1
@@ -54,7 +70,7 @@ def dividend_cut_detected(dividends):
 
         amount = float(
             dividend.get(
-                "dividend_amount",
+                "amount",
                 0
             )
         )
@@ -79,14 +95,14 @@ def dividend_growth_positive(dividends):
 
     newest = float(
         dividends[0].get(
-            "dividend_amount",
+            "amount",
             0
         )
     )
 
     oldest = float(
         dividends[-1].get(
-            "dividend_amount",
+            "amount",
             0
         )
     )
@@ -180,21 +196,43 @@ def get_latest_ttm_free_cash_flow(
 
 def calc_reit_payout_ratio(
     annual_dividends_paid,
-    ttm_free_cash_flow
+    ttm_free_cash_flow,
+    shares_outstanding
 ):
+    """
+    annual_dividends_paid is PER SHARE (summed from dividend_history,
+    where "amount" is always a per-share dollar figure).
+    ttm_free_cash_flow is TOTAL company-wide dollars (summed from
+    the free_cash_flow_metrics collection, which stores whole-company
+    figures). Those can't be divided directly - shares_outstanding
+    converts ttm_free_cash_flow into a per-share figure first so
+    both sides of the ratio are in the same units.
+    """
 
     if (
         annual_dividends_paid is None
         or ttm_free_cash_flow is None
+        or shares_outstanding is None
     ):
         return None
 
     if ttm_free_cash_flow <= 0:
         return None
 
+    if shares_outstanding <= 0:
+        return None
+
+    fcf_per_share = (
+        ttm_free_cash_flow /
+        shares_outstanding
+    )
+
+    if fcf_per_share <= 0:
+        return None
+
     return (
         annual_dividends_paid /
-        ttm_free_cash_flow
+        fcf_per_share
     )
 
 def calc_standard_payout_ratio(
@@ -216,17 +254,30 @@ def calc_standard_payout_ratio(
         eps
     )                    
                     
-# Get the last 4 quarters of dividends
-# input is the ticker   
+# Get the trailing twelve months of dividends paid, per share.
+# Uses a date window rather than a fixed record count (e.g. "last
+# 4") because that assumes quarterly payments - a monthly payer
+# like O (Realty Income) would only get ~4 months counted instead
+# of a true annual total. A ~370 day window covers a full year
+# for any payment frequency, with a small buffer for date drift.
 def get_annual_dividends_paid(
-    ticker,
-    limit=4
+    ticker
 ):
 
-    dividends = (
-        get_recent_dividends(
-            ticker,
-            limit
+    cutoff = (
+        datetime.utcnow() -
+        timedelta(days=370)
+    )
+
+    dividends = list(
+        dividend_history.find(
+            {
+                "ticker": ticker,
+                "validation_status": "valid",
+                "ex_dividend_date": {
+                    "$gte": cutoff
+                }
+            }
         )
     )
 
@@ -237,7 +288,7 @@ def get_annual_dividends_paid(
     total = sum(
 
         dividend.get(
-            "dividend_amount",
+            "amount",
             0
         )
 

@@ -1,6 +1,7 @@
 from datetime import datetime
 from pymongo import MongoClient
 import sys
+import json
 import requests
 import time
 import logging
@@ -8,7 +9,7 @@ from utilities.logger import setup_logger
 
 from models.mongo import get_collection
 from models.settings import get_api_key
-from models.utils import safe_float
+from models.utils import safe_float, safe_int
 from models.api_utils import verify_database_connection
 from models.api_utils import check_api_response
 from models.constants import (
@@ -193,6 +194,15 @@ for ticker in STOCK_TICKERS:
             # valuation
             "pe_ratio": safe_float(
                 data.get("PERatio")
+            ),
+
+            # shares outstanding - needed to normalize REIT payout
+            # ratio (per-share dividends vs total-company FCF).
+            # default=None (not 0) so a missing value can't silently
+            # turn into a division-by-zero downstream.
+            "shares_outstanding": safe_int(
+                data.get("SharesOutstanding"),
+                default=None
             ),
 
             # metadata
