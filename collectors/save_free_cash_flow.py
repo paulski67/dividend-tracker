@@ -87,20 +87,33 @@ def save_cash_flow_data(ticker, data):
 
     quarterly_reports = data.get("quarterlyReports", [])
 
+    if not quarterly_reports:
+
+        logging.warning(
+            f"{ticker}: API returned no quarterlyReports "
+            f"(response otherwise looked normal - likely a "
+            f"transient gap on Alpha Vantage's end, not a bad "
+            f"ticker or a rate limit)."
+        )
+
+        return 0, 0
+
     for report in quarterly_reports:
 
         try:
 
             operating_cash_flow = safe_int(
-                report.get("operatingCashflow")
+                report.get("operatingCashflow"),
+                default=None
             )
 
             capital_expenditures = safe_int(
-                report.get("capitalExpenditures")
+                report.get("capitalExpenditures"),
+                default=None
             )
 
-            if (operating_cash_flow  in [None, "None"] or
-                capital_expenditures in [None, "None"] ):
+            if (operating_cash_flow is None or
+                capital_expenditures is None):
 
                 logging.warning(
                     f"Skipping invalid Free Cash FLOW record for {ticker}"
@@ -130,13 +143,30 @@ def save_cash_flow_data(ticker, data):
                 "free_cash_flow":
                     free_cash_flow,
 
-                "created_at":
+                "updated_at":
                     datetime.utcnow()
             }
 
-            collection.insert_one(document)
+            result = collection.update_one(
+                {
+                    "ticker": ticker,
+                    "fiscal_date": report.get(
+                        "fiscalDateEnding"
+                    )
+                },
+                {
+                    "$set": document,
+                    "$setOnInsert": {
+                        "created_at": datetime.utcnow()
+                    }
+                },
+                upsert=True
+            )
 
-            inserted_count += 1
+            if result.upserted_id is not None:
+                inserted_count += 1
+            else:
+                duplicate_count += 1
 
         except DuplicateKeyError:
 
