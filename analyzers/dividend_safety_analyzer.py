@@ -87,15 +87,6 @@ def get_latest_daily_metrics(ticker):
 
 # -----------------------------------------
 
-def get_latest_fcf(ticker):
-
-    return free_cash_flow.find_one(
-        {
-            "ticker": ticker
-        },
-        sort=[("fiscal_date", -1)]
-    )
-
 # =========================================
 # Main Scoring Function
 # =========================================
@@ -126,6 +117,19 @@ def calculate_score(ticker):
         }
 
     # -------------------------------------
+    # Free Cash Flow (trailing twelve months)
+    # -------------------------------------
+    # Computed once here, ahead of the REIT/non-REIT branch below,
+    # so both the REIT payout ratio calc and the general negative-
+    # FCF warning use the SAME trailing-4-quarter number - a single
+    # lumpy quarter (common for REITs and utilities) shouldn't
+    # flag "negative free cash flow" if the trailing year is
+    # actually healthy.
+    ttm_fcf = (
+        get_latest_ttm_free_cash_flow(ticker)
+    )
+
+    # -------------------------------------
     # REIT Detection and Payout ratio
     # -------------------------------------    
     payout_ratio = None
@@ -135,10 +139,6 @@ def calculate_score(ticker):
 
         annual_dividends_paid = (
             get_annual_dividends_paid(ticker)
-        )
-
-        ttm_fcf = (
-            get_latest_ttm_free_cash_flow(ticker)
         )
 
         payout_ratio = (
@@ -260,18 +260,17 @@ def calculate_score(ticker):
     # Free Cash Flow
     # -------------------------------------
 
-    latest_fcf = get_latest_fcf(
-        ticker
-    )
+    # -------------------------------------
+    # Free Cash Flow warning
+    # -------------------------------------
+    # Uses the same ttm_fcf computed above (trailing 4 quarters),
+    # not a single quarter - a company can have one lumpy negative
+    # quarter (large capex, real estate purchase, etc) while its
+    # trailing-year cash generation is perfectly healthy.
 
-    if latest_fcf:
+    if ttm_fcf is not None:
 
-        fcf = latest_fcf.get(
-            "free_cash_flow",
-            0
-        )
-
-        if fcf <= 0:
+        if ttm_fcf <= 0:
 
             score -= 25
 
