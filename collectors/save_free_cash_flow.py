@@ -112,6 +112,19 @@ def save_cash_flow_data(ticker, data):
                 default=None
             )
 
+            # NEW: dividend payout, falling back to common-stock field
+            dividend_payout = safe_int(
+                report.get("dividendPayout"),
+                default=None
+            )
+
+            if dividend_payout is None:
+                dividend_payout = safe_int(
+                    report.get("dividendPayoutCommonStock"),
+                    default=None
+                )
+            # END NEW
+
             if (operating_cash_flow is None or
                 capital_expenditures is None):
 
@@ -142,6 +155,10 @@ def save_cash_flow_data(ticker, data):
 
                 "free_cash_flow":
                     free_cash_flow,
+                    
+                # NEW
+                "dividend_payout":
+                    dividend_payout,
 
                 "updated_at":
                     datetime.utcnow()

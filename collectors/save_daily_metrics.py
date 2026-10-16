@@ -158,11 +158,13 @@ for ticker in STOCK_TICKERS:
             eps
         )
 
+        beta = safe_float(data.get("Beta"))
 
         logging.info(
-            f"\n\t\tDividendPerShare={dividend_per_share}\n"
-            f"\t\tEPS={eps}\n"
-            f"\t\tPayoutRatio={payout_ratio}"
+            f"\tDividendPerShare={dividend_per_share}\n"
+            f"\t\t\t\tEPS={eps}\n"
+            f"\t\t\t\tPayoutRatio={payout_ratio}\n"
+            f"\t\t\t\tBeta={beta}"
         )
         # -----------------------------------------------------
         # BUILD DOCUMENT
@@ -184,9 +186,7 @@ for ticker in STOCK_TICKERS:
            "payout_ratio": payout_ratio,
            
             # risk metrics
-            "beta": safe_float(
-                data.get("Beta")
-            ),
+            "beta": beta,
 
             # earnings
             "eps": eps,
@@ -220,10 +220,6 @@ for ticker in STOCK_TICKERS:
 
         result = collection.insert_one(document)
         total_inserted += 1
-        
-        
-        logging.info(f"Inserted {ticker}")
-        logging.info(f"Mongo ID: {result.inserted_id}")
 
     except Exception as e:
 
@@ -238,7 +234,6 @@ for ticker in STOCK_TICKERS:
         # -----------------------------------------------------
 
         if should_sleep:
-            logging.info(f"Sleeping for {THROTTLE_SECONDS} seconds...\n")
             time.sleep(THROTTLE_SECONDS)
         else:
             break
