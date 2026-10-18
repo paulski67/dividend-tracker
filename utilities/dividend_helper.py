@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 
 from models.mongo import get_collection
+from models.utils import now_local
 #from models.database import (
 #    get_collection
 #)
@@ -265,7 +266,7 @@ def get_annual_dividends_paid(
 ):
 
     cutoff = (
-        datetime.utcnow() -
+        now_local() -
         timedelta(days=370)
     )
 

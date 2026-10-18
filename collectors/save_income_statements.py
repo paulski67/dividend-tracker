@@ -17,7 +17,7 @@ from models.constants import (
     INCOME_STATEMENTS_COLLECTION,
     THROTTLE_SECONDS
 )
-from models.utils import safe_int
+from models.utils import safe_int, now_local
 
 # =========================================================
 # Logging
@@ -199,12 +199,12 @@ for ticker in STOCK_TICKERS:
 
             "source": "alphavantage",
 
-            "last_updated": datetime.utcnow(),
+            "last_updated": now_local(),
 
             "created_at":
                 existing["created_at"]
                 if existing and "created_at" in existing
-                else datetime.utcnow()
+                else now_local()
         }
 
         collection.replace_one(

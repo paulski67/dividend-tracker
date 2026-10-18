@@ -13,7 +13,7 @@ from utilities.dividend_helper import (
     dividend_growth_positive
 )
 from models.mongo import get_collection
-from models.utils import safe_float
+from models.utils import safe_float, now_local
 from models.api_utils import verify_database_connection
 from models.settings import (
     get_max_payout_ratio,
@@ -416,7 +416,7 @@ for ticker in STOCK_TICKERS:
         "payout_ratio": result["payout_ratio"],
         "payout_ratio_method": result["payout_ratio_method"],
         "beta": result["beta"],
-        "run_date": datetime.utcnow()
+        "run_date": now_local()
     }
 
     insert_result = weekly_scores_collection.insert_one(

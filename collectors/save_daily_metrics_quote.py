@@ -41,7 +41,7 @@ from utilities.logger import setup_logger
 
 from models.mongo import get_collection
 from models.settings import get_api_key
-from models.utils import safe_float
+from models.utils import safe_float, now_local, today_local
 from models.api_utils import verify_database_connection
 from models.api_utils import check_api_response
 from models.constants import (
@@ -182,7 +182,7 @@ def get_annual_dividend(ticker):
         logging.warning(f"{ticker}: fewer than {per_year} payments on file")
         return None
 
-    days_since_last = (datetime.utcnow() - dates[0]).days
+    days_since_last = (now_local() - dates[0]).days
 
     if days_since_last > typical_gap * 2:
         logging.warning(
@@ -238,7 +238,7 @@ def get_ttm_eps(ticker, shares_outstanding):
         )
         return None, None
 
-    age_days = (datetime.utcnow() - newest).days
+    age_days = (now_local() - newest).days
 
     if age_days > 200:
         logging.warning(
@@ -272,14 +272,9 @@ logging.info("===================================")
 if DRY_RUN:
     logging.info("DRY RUN - nothing will be inserted")
 
-today = datetime.utcnow().replace(
-    hour=0,
-    minute=0,
-    second=0,
-    microsecond=0
-)
+today = today_local()
 
-logging.info(f"UTC today bucket: {today}")
+logging.info(f"Local today bucket: {today}")
 
 total_inserted = 0
 
@@ -422,7 +417,7 @@ for ticker in tickers:
             "source": "alphavantage",
             "method": "quote_plus_carry_forward",
             "fundamentals_as_of": fundamentals_as_of,
-            "created_at": datetime.utcnow()
+            "created_at": now_local()
         }
 
         # -----------------------------------------------------
