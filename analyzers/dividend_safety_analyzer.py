@@ -10,14 +10,17 @@ from utilities.dividend_helper import (
     get_latest_ttm_free_cash_flow,
     calc_standard_payout_ratio,
     calc_reit_payout_ratio,
-    dividend_growth_positive
+    get_dividend_growth_1y,
+    is_bank,
+    get_ttm_cash_flow
 )
 from models.mongo import get_collection
 from models.utils import safe_float, now_local
 from models.api_utils import verify_database_connection
 from models.settings import (
     get_max_payout_ratio,
-    get_max_beta
+    get_max_beta,
+    get_min_dividend_growth
 )
 from models.constants import (
     DAILY_METRICS_COLLECTION,
@@ -32,6 +35,9 @@ from models.constants import (
 # Logging
 # =========================================================
 setup_logger()
+
+# --dry-run scores and logs every ticker but saves nothing
+DRY_RUN = "--dry-run" in sys.argv[1:]
 
 
 # =========================================
@@ -71,6 +77,11 @@ CAUTION_PAYOUT_RATIO = (get_max_payout_ratio())
 DANGER_PAYOUT_RATIO = (CAUTION_PAYOUT_RATIO + 0.20)
 
 MAX_BETA = (get_max_beta())
+
+MIN_DIVIDEND_GROWTH = (get_min_dividend_growth())
+
+# Dividends paid / free cash flow, both trailing four quarters
+MAX_FCF_PAYOUT_RATIO = 1.0
 
 # =========================================
 # Helper Functions
@@ -267,16 +278,73 @@ def calculate_score(ticker):
     # not a single quarter - a company can have one lumpy negative
     # quarter (large capex, real estate purchase, etc) while its
     # trailing-year cash generation is perfectly healthy.
+    #
+    # Banks skip these checks - see is_bank().
 
-    if ttm_fcf is not None:
+    cash_flow = get_ttm_cash_flow(ticker)
+
+    fcf_payout_ratio = None
+    capex_to_ocf = None
+
+    if cash_flow and cash_flow["operating_cash_flow"] > 0:
+
+        capex_to_ocf = (
+            cash_flow["capital_expenditures"] /
+            cash_flow["operating_cash_flow"]
+        )
+
+    if is_bank(metrics):
+
+        pass
+
+    elif ttm_fcf is not None:
 
         if ttm_fcf <= 0:
 
-            score -= 25
+            # Capex bigger than (positive) operating cash flow is a
+            # building program - utilities, industrial gas - usually
+            # debt-funded. Softer than operations burning cash.
+            # Not for REITs: they pay out most of their cash by
+            # design, so a REIT building past its cash flow is
+            # borrowing to fund the dividend.
+            if (
+                not is_reit(metrics)
+                and capex_to_ocf is not None
+                and capex_to_ocf > 1
+            ):
 
-            warnings.append(
-                "Negative free cash flow"
+                score -= 10
+
+                warnings.append(
+                    "Negative free cash flow (capex-driven)"
+                )
+
+            else:
+
+                score -= 25
+
+                warnings.append(
+                    "Negative free cash flow"
+                )
+
+        elif cash_flow:
+
+            fcf_payout_ratio = (
+                cash_flow["dividend_payout"] /
+                ttm_fcf
             )
+
+            # REITs already score their payout ratio on FCF above
+            if (
+                not is_reit(metrics)
+                and fcf_payout_ratio > MAX_FCF_PAYOUT_RATIO
+            ):
+
+                score -= 15
+
+                warnings.append(
+                    "Dividends exceed free cash flow"
+                )
 
     else:
 
@@ -294,6 +362,10 @@ def calculate_score(ticker):
         ticker
     )
 
+    dividend_growth_1y = get_dividend_growth_1y(
+        ticker
+    )
+
     if not dividends:
 
         score -= 25
@@ -308,9 +380,11 @@ def calculate_score(ticker):
         # Dividend Cut
         # ---------------------------------
 
-        if dividend_cut_detected(
+        cut = dividend_cut_detected(
             dividends
-        ):
+        )
+
+        if cut:
 
             score -= 40
 
@@ -321,16 +395,26 @@ def calculate_score(ticker):
         # ---------------------------------
         # Dividend Growth
         # ---------------------------------
+        # Latest payment vs. the one a year earlier. Skipped after
+        # a cut - the cut warning already covers it.
 
-        if not dividend_growth_positive(
-            dividends
-        ):
+        if not cut and dividend_growth_1y is not None:
 
-            score -= 15
+            if dividend_growth_1y <= 0:
 
-            warnings.append(
-                "Dividend growth weak"
-            )
+                score -= 15
+
+                warnings.append(
+                    "Dividend frozen"
+                )
+
+            elif dividend_growth_1y < MIN_DIVIDEND_GROWTH:
+
+                score -= 10
+
+                warnings.append(
+                    "Slow dividend growth"
+                )
 
     # -------------------------------------
     # Floor Score
@@ -371,6 +455,9 @@ def calculate_score(ticker):
         "payout_ratio": payout_ratio,
         "payout_ratio_method": payout_ratio_method,
         "beta": beta,
+        "dividend_growth_1y": dividend_growth_1y,
+        "fcf_payout_ratio": fcf_payout_ratio,
+        "capex_to_ocf": capex_to_ocf,
         "score": score,
         "status": status,
         "warnings": warnings
@@ -416,8 +503,19 @@ for ticker in STOCK_TICKERS:
         "payout_ratio": result["payout_ratio"],
         "payout_ratio_method": result["payout_ratio_method"],
         "beta": result["beta"],
+        "dividend_growth_1y": result.get("dividend_growth_1y"),
+        "fcf_payout_ratio": result.get("fcf_payout_ratio"),
+        "capex_to_ocf": result.get("capex_to_ocf"),
         "run_date": now_local()
     }
+
+    if DRY_RUN:
+
+        logging.info(
+            f"DRY RUN - not saving weekly score for {ticker}"
+        )
+
+        continue
 
     insert_result = weekly_scores_collection.insert_one(
         score_document

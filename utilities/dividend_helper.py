@@ -86,29 +86,57 @@ def dividend_cut_detected(dividends):
     return False
 
 # =========================================
-# Dividend Growth Detection
+# Dividend Growth (one year)
 # =========================================
+# Compares the latest payment with the one paid about a year
+# earlier, rather than summing two 12-month windows - a quarterly
+# ex-date drifting across a window edge would count 3 or 5
+# payments in a year and fake a cut or a big raise.
+#
+# Returns a fraction (0.025 = 2.5%), or None if there's no
+# payment within 45 days of a year before the latest one.
 
-def dividend_growth_positive(dividends):
+def get_dividend_growth_1y(ticker):
 
-    if len(dividends) < 4:
-        return False
+    dividends = get_recent_dividends(
+        ticker,
+        limit=24
+    )
 
-    newest = float(
-        dividends[0].get(
+    if len(dividends) < 2:
+        return None
+
+    latest = dividends[0]
+
+    target = (
+        latest["ex_dividend_date"] -
+        timedelta(days=365)
+    )
+
+    year_ago = min(
+        dividends[1:],
+        key=lambda d: abs(
+            (d["ex_dividend_date"] - target).days
+        )
+    )
+
+    if abs((year_ago["ex_dividend_date"] - target).days) > 45:
+        return None
+
+    previous = float(
+        year_ago.get(
             "amount",
             0
         )
     )
 
-    oldest = float(
-        dividends[-1].get(
-            "amount",
-            0
-        )
-    )
+    if previous <= 0:
+        return None
 
-    return newest >= oldest
+    return (
+        float(latest.get("amount", 0)) /
+        previous
+    ) - 1
     
     
 #---- presentation layer   
@@ -153,9 +181,58 @@ def is_reit(daily_metrics):
     )
 
     return "REIT" in industry
-    
-    
-    
+
+
+# Banks report almost no capex, and their operating cash flow
+# mostly reflects lending and deposits, so free-cash-flow checks
+# say little about their dividend safety.
+def is_bank(daily_metrics):
+
+    industry = (
+        daily_metrics.get("industry", "")
+        .upper().strip()
+    )
+
+    return "BANK" in industry
+
+
+# Trailing-four-quarter totals (whole-company dollars) of the
+# cash-flow fields. None if fewer than four quarters are stored.
+def get_ttm_cash_flow(
+    ticker
+):
+
+    records = list(
+        free_cash_flow_metrics.find(
+            {
+                "ticker": ticker
+            }
+        ).sort(
+            "fiscal_date",
+            -1
+        ).limit(4)
+    )
+
+    if len(records) < 4:
+        return None
+
+    fields = [
+        "operating_cash_flow",
+        "capital_expenditures",
+        "free_cash_flow",
+        "dividend_payout"
+    ]
+
+    return {
+        field: sum(
+            r.get(field) or 0
+            for r in records
+        )
+        for field in fields
+    }
+
+
+
 def get_latest_ttm_free_cash_flow(
     ticker
 ):
