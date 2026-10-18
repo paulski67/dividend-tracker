@@ -15,7 +15,7 @@ from utilities.dividend_helper import (
 
 from models.mongo import get_collection
 from models.api_utils import verify_database_connection
-from models.utils import get_timestamped_file
+from models.utils import get_timestamped_file, now_local
 from models.constants import (
     STOCK_TICKERS,
     WEEKLY_SCORES_COLLECTION,
@@ -99,7 +99,7 @@ for ticker in STOCK_TICKERS:
             []
         ),
 
-        "created_at": datetime.utcnow()
+        "created_at": now_local()
     }
 
     scorecards.replace_one(

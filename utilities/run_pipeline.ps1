@@ -43,13 +43,11 @@ if ($LASTEXITCODE -ne 0)
 $day = (Get-Date).DayOfWeek
 
 $localNow = Get-Date
-$utcNow   = $localNow.ToUniversalTime()
-$utcBucket = $utcNow.Date
+$localBucket = $localNow.Date
 
-Write-Host "Current Day: $day"
-Write-Host "Local Time : $localNow"
-Write-Host "UTC Time   : $utcNow"
-Write-Host "UTC Bucket : $utcBucket"
+Write-Host "Current Day : $day"
+Write-Host "Local Time  : $localNow"
+Write-Host "Date Bucket : $localBucket"
 
 switch ($day)
 {

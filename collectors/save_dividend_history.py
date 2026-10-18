@@ -10,7 +10,7 @@ from utilities.logger import setup_logger
 
 from models.mongo import get_collection
 from models.settings import get_api_key
-from models.utils import safe_float
+from models.utils import safe_float, now_local
 from models.api_utils import verify_database_connection
 from models.api_utils import check_api_response
 from models.constants import (
@@ -220,7 +220,7 @@ for ticker in STOCK_TICKERS:
 
                 "source": "alphavantage",
 
-                "updated_at": datetime.utcnow(),
+                "updated_at": now_local(),
 
                 "validation_status": validation_status
             }
@@ -239,7 +239,7 @@ for ticker in STOCK_TICKERS:
                     {
                         "$set": document,
                         "$setOnInsert": {
-                            "created_at": datetime.utcnow()
+                            "created_at": now_local()
                         }
                     },
                     upsert=True

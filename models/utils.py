@@ -2,7 +2,28 @@ import logging
 import requests
 from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 from models.settings import get_health_check_config
+
+# Every timestamp and date bucket we store is Eastern wall-clock time
+# (EST/EDT), saved as a naive datetime. A 7pm run then always lands on
+# the same calendar day, whatever the DST offset.
+LOCAL_TZ = ZoneInfo("America/New_York")
+
+
+def now_local():
+
+    return datetime.now(LOCAL_TZ).replace(tzinfo=None)
+
+
+def today_local():
+
+    return now_local().replace(
+        hour=0,
+        minute=0,
+        second=0,
+        microsecond=0
+    )
 
 def verify_internet_connection():
 

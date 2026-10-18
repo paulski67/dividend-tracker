@@ -10,7 +10,7 @@ from pymongo.errors import DuplicateKeyError
 
 from models.mongo import get_collection
 from models.settings import get_api_key
-from models.utils import safe_int
+from models.utils import safe_int, now_local
 from models.api_utils import check_api_response
 from models.api_utils import verify_database_connection
 from models.constants import (
@@ -161,7 +161,7 @@ def save_cash_flow_data(ticker, data):
                     dividend_payout,
 
                 "updated_at":
-                    datetime.utcnow()
+                    now_local()
             }
 
             result = collection.update_one(
@@ -174,7 +174,7 @@ def save_cash_flow_data(ticker, data):
                 {
                     "$set": document,
                     "$setOnInsert": {
-                        "created_at": datetime.utcnow()
+                        "created_at": now_local()
                     }
                 },
                 upsert=True

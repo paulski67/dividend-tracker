@@ -9,7 +9,7 @@ from utilities.logger import setup_logger
 
 from models.mongo import get_collection
 from models.settings import get_api_key
-from models.utils import safe_float, safe_int
+from models.utils import safe_float, safe_int, now_local, today_local
 from models.api_utils import verify_database_connection
 from models.api_utils import check_api_response
 from models.constants import (
@@ -97,14 +97,9 @@ logging.info("===================================")
 logging.info("STARTING NIGHTLY METRIC COLLECTION")
 logging.info("===================================")
 
-today = datetime.utcnow().replace(
-    hour=0,
-    minute=0,
-    second=0,
-    microsecond=0
-)
+today = today_local()
 
-logging.info(f"UTC today bucket: {today}")
+logging.info(f"Local today bucket: {today}")
 
 for ticker in STOCK_TICKERS:
 
@@ -211,7 +206,7 @@ for ticker in STOCK_TICKERS:
 
             # bookkeeping
             "source": "alphavantage",
-            "created_at": datetime.utcnow()
+            "created_at": now_local()
         }
 
         # -----------------------------------------------------
