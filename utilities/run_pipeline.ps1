@@ -56,15 +56,15 @@ switch ($day)
     }
 
     "Tuesday" {
-       & $python -m collectors.save_daily_metrics_quote
+       & $python -m collectors.save_daily_metrics
     }
 
     "Wednesday" {
-       & $python -m collectors.save_daily_metrics_quote
+       & $python -m collectors.save_daily_metrics
     }
 
     "Thursday" {
-       & $python -m collectors.save_daily_metrics_quote
+       & $python -m collectors.save_daily_metrics
     }
 
     "Friday" {

@@ -14,14 +14,14 @@ Every script must be run **as a module from the project root**: `config/config.i
 
 ```powershell
 .venv\Scripts\python.exe -m utilities.health_check                  # internet + MongoDB + memory check
-.venv\Scripts\python.exe -m collectors.save_daily_metrics_quote ADP  # one ticker
-.venv\Scripts\python.exe -m collectors.save_daily_metrics_quote --dry-run ADP   # print, no insert
+.venv\Scripts\python.exe -m collectors.save_daily_metrics ADP  # one ticker
+.venv\Scripts\python.exe -m collectors.save_daily_metrics --dry-run ADP   # print, no insert
 .venv\Scripts\python.exe -m analyzers.dividend_safety_analyzer
 .venv\Scripts\python.exe -m analyzers.portfolio_scorecard
 .venv\Scripts\python.exe -m utilities.archive_manager backup backups\<dir>     # or: restore
 ```
 
-Only `save_daily_metrics_quote` accepts ticker args / `--dry-run`; the other collectors always process the full watchlist. Scripts do their work at module level (no `main()`), so importing one runs it.
+Only `save_daily_metrics` accepts ticker args / `--dry-run`; the other collectors always process the full watchlist. Scripts do their work at module level (no `main()`), so importing one runs it.
 
 **Collectors spend Alpha Vantage calls** (free tier: daily cap, `THROTTLE_SECONDS = 15` between calls). Don't rerun them casually; ask first. Analyzers and `/portfolio-check` only read MongoDB.
 
@@ -32,7 +32,7 @@ Only `save_daily_metrics_quote` accepts ticker args / `--dry-run`; the other col
 | Day | Job | Writes to |
 |---|---|---|
 | Mon | `collectors.save_income_statements` | `income_statements` |
-| Tue–Thu | `collectors.save_daily_metrics_quote` | `daily_metrics` |
+| Tue–Thu | `collectors.save_daily_metrics` | `daily_metrics` |
 | Fri | `collectors.save_dividend_history` | `dividend_history` |
 | Sat | `collectors.save_free_cash_flow` | `free_cash_flow_metrics` |
 | Sun | `analyzers.dividend_safety_analyzer`, then `analyzers.portfolio_scorecard` | `weekly_scores`, `portfolio_scorecards`, `reports/*.txt` |
@@ -43,7 +43,7 @@ Logs: `logs/pipeline.log` (daily rotation, via `utilities.logger.setup_logger`) 
 
 - **`models/`**: shared plumbing. `mongo.get_collection()`, `settings` (reads `config/config.ini`: API key, thresholds), `constants` (collection names, ticker list), `utils.safe_float/safe_int/safe_date` (Alpha Vantage returns `"None"`/`"N/A"` strings), `api_utils.check_api_response()` (detects rate-limit / premium messages, which come back as HTTP 200 with a `Note`/`Information` field).
 - **`utilities/dividend_helper.py`**: the domain logic shared by analyzers and collectors: cut detection, growth check, REIT detection (`"REIT"` in `industry`), standard vs. REIT payout ratio (REITs use TTM free cash flow, normalized by `shares_outstanding`).
-- **OVERVIEW went premium on 2026-10-06.** `save_daily_metrics_quote.py` replaced `save_daily_metrics.py` (kept for reference, no longer scheduled). It derives price from GLOBAL_QUOTE, dividend/share from `dividend_history`, EPS from `income_statements` net income ÷ shares; **beta, sector, industry and shares_outstanding are carried forward** from the last real value (`fundamentals_as_of`). Its module docstring has the full field-source map.
+- **OVERVIEW went premium on 2026-10-06.** `save_daily_metrics.py` no longer calls it: it derives price from GLOBAL_QUOTE, dividend/share from `dividend_history`, EPS from `income_statements` net income ÷ shares; **beta, sector, industry and shares_outstanding are carried forward** from the last real value (`fundamentals_as_of`). Its module docstring has the full field-source map.
 - On an API refusal, collectors stop the whole run rather than burning remaining daily calls. A collector can exit 0 having inserted nothing, so check the data, not exit codes.
 - `dividend_history` records carry `validation_status`; `suspect` ones (e.g. a >2× jump) are excluded from cut detection (`get_recent_dividends(valid_only=True)`).
 - Safety score starts at 100 with deductions per warning (payout ratio vs. `[thresholds]` in config, beta, negative FCF, cut, etc.); `weekly_scores` is append-only history, `portfolio_scorecards` is one upserted doc per ticker.
