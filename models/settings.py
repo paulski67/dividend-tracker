@@ -34,4 +34,12 @@ def get_max_beta():
         config["thresholds"][
             "max_beta"
         ]
-    )    
+    )
+
+def get_min_dividend_growth():
+
+    return float(
+        config["thresholds"][
+            "min_dividend_growth"
+        ]
+    )

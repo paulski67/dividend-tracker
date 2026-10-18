@@ -17,11 +17,12 @@ Every script must be run **as a module from the project root**: `config/config.i
 .venv\Scripts\python.exe -m collectors.save_daily_metrics ADP  # one ticker
 .venv\Scripts\python.exe -m collectors.save_daily_metrics --dry-run ADP   # print, no insert
 .venv\Scripts\python.exe -m analyzers.dividend_safety_analyzer
+.venv\Scripts\python.exe -m analyzers.dividend_safety_analyzer --dry-run   # score + log, save nothing
 .venv\Scripts\python.exe -m analyzers.portfolio_scorecard
 .venv\Scripts\python.exe -m utilities.archive_manager backup backups\<dir>     # or: restore
 ```
 
-Only `save_daily_metrics` accepts ticker args / `--dry-run`; the other collectors always process the full watchlist. Scripts do their work at module level (no `main()`), so importing one runs it.
+Only `save_daily_metrics` accepts ticker args; it and `dividend_safety_analyzer` accept `--dry-run`; the other collectors always process the full watchlist. Scripts do their work at module level (no `main()`), so importing one runs it.
 
 **Collectors spend Alpha Vantage calls** (free tier: daily cap, `THROTTLE_SECONDS = 15` between calls). Don't rerun them casually; ask first. Analyzers and `/portfolio-check` only read MongoDB.
 
@@ -46,7 +47,7 @@ Logs: `logs/pipeline.log` (daily rotation, via `utilities.logger.setup_logger`) 
 - **OVERVIEW went premium on 2026-10-06.** `save_daily_metrics.py` no longer calls it: it derives price from GLOBAL_QUOTE, dividend/share from `dividend_history`, EPS from `income_statements` net income ÷ shares; **beta, sector, industry and shares_outstanding are carried forward** from the last real value (`fundamentals_as_of`). Its module docstring has the full field-source map.
 - On an API refusal, collectors stop the whole run rather than burning remaining daily calls. A collector can exit 0 having inserted nothing, so check the data, not exit codes.
 - `dividend_history` records carry `validation_status`; `suspect` ones (e.g. a >2× jump) are excluded from cut detection (`get_recent_dividends(valid_only=True)`).
-- Safety score starts at 100 with deductions per warning (payout ratio vs. `[thresholds]` in config, beta, negative FCF, cut, etc.); `weekly_scores` is append-only history, `portfolio_scorecards` is one upserted doc per ticker.
+- Safety score starts at 100 with deductions per warning (payout ratio vs. `[thresholds]` in config, beta, cut, dividend frozen / growth below `min_dividend_growth`, dividends exceeding TTM free cash flow, negative FCF - softer when capex-driven, except for REITs; banks skip FCF checks); `weekly_scores` is append-only history, `portfolio_scorecards` is one upserted doc per ticker.
 - **All stored timestamps and date buckets are Eastern wall-clock time** (America/New_York, naive datetimes). Use `models.utils.now_local()` / `today_local()`, never `datetime.utcnow()`. Calendar dates from Alpha Vantage (ex-dividend, fiscal dates) are stored as-is.
 
 ## Repo conventions
