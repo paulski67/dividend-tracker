@@ -33,6 +33,8 @@ If the output has `"error"`, report it plainly and stop. The usual causes: not r
   - `tickers_missing_from_latest_bucket`: who got skipped last night.
   - `fundamentals_days_old`: beta, sector and shares outstanding are carried forward since OVERVIEW went premium. Mention it if it's over 30 days, since those numbers are getting stale.
   - `null_payout_ratio`: those tickers will get "Missing payout ratio" in the next safety score.
+  - `beta_carried_forward`: tickers still using the old frozen OVERVIEW beta instead of one calculated by `save_monthly_prices`.
+- `beta_history`: written once a month (first Wednesday). Before its first run it shows as `FAIL` with every ticker missing; that's expected until then.
 - `dividend_history.details.validation_status_counts`: `suspect`/`distribution` records are excluded from cut detection. Mention them only if the count changed or is large.
 
 Schedule, for explaining what *should* have run:
@@ -40,7 +42,8 @@ Schedule, for explaining what *should* have run:
 | Day | Job | Collection |
 |---|---|---|
 | Mon | save_income_statements | income_statements |
-| Tue-Thu | save_daily_metrics | daily_metrics |
+| Tue, Thu | save_daily_metrics | daily_metrics |
+| Wed | save_monthly_prices on the first Wednesday of the month, otherwise save_daily_metrics | monthly_prices + beta_history, or daily_metrics |
 | Fri | save_dividend_history | dividend_history |
 | Sat | save_free_cash_flow | free_cash_flow_metrics |
 | Sun | dividend_safety_analyzer, portfolio_scorecard | weekly_scores, portfolio_scorecards |

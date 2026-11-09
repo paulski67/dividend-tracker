@@ -14,6 +14,10 @@ WEEKLY_SCORES_COLLECTION = "weekly_scores"
 
 PORTFOLIO_SCORECARD_COLLECTION = "portfolio_scorecards"
 
+MONTHLY_PRICES_COLLECTION = "monthly_prices"
+
+BETA_COLLECTION = "beta_history"
+
 
 # Report names
 
@@ -33,6 +37,9 @@ STATUS_CUT = "CUT"
 # common parameters
 
 THROTTLE_SECONDS = 15
+
+# Stand-in for "the market" when calculating beta (S&P 500 ETF)
+MARKET_TICKER = "SPY"
 
 STOCK_TICKERS = [
     "ABBV",
