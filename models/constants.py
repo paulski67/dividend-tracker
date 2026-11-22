@@ -47,8 +47,8 @@ STOCK_TICKERS = [
     "ADP",
     "APD",
     "AWK",
-    "BKH",
     "CVX",
+    "HZN",  # was BKH until the Nov 2026 merger; records relabeled
     "IRM",
     "JNJ",
     "KO",
