@@ -41,6 +41,7 @@ try:
         FREE_CASH_FLOW_COLLECTION,
         WEEKLY_SCORES_COLLECTION,
         PORTFOLIO_SCORECARD_COLLECTION,
+        BETA_COLLECTION,
     )
 except Exception as exc:  # wrong folder, missing config, etc.
     print(json.dumps({
@@ -68,7 +69,7 @@ PIPELINE = [
     {
         "collection": DAILY_METRICS_COLLECTION,
         "writer": "collectors.save_daily_metrics",
-        "schedule": "Tue/Wed/Thu",
+        "schedule": "Tue/Thu, and Wed except the first of the month",
         "time_field": "created_at",
         "max_age_days": 5,
     },
@@ -99,6 +100,14 @@ PIPELINE = [
         "schedule": "Sunday",
         "time_field": "created_at",
         "max_age_days": 8,
+    },
+    {
+        "collection": BETA_COLLECTION,
+        "writer": "collectors.save_monthly_prices",
+        "schedule": "First Wednesday of the month",
+        "time_field": "created_at",
+        # first Wednesdays can be 5 weeks apart
+        "max_age_days": 36,
     },
 ]
 
@@ -206,6 +215,9 @@ def daily_metrics_details(now):
         "fundamentals_days_old": days_old(oldest_fundamentals, now),
         "null_payout_ratio": sorted(d["ticker"] for d in docs if d.get("payout_ratio") is None),
         "null_eps": sorted(d["ticker"] for d in docs if d.get("eps") is None),
+        "beta_carried_forward": sorted(
+            d["ticker"] for d in docs if d.get("beta_source") != "beta_history"
+        ),
     }
 
 

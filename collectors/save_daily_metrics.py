@@ -16,9 +16,12 @@ Where each field now comes from:
                            which was used)
     pe_ratio               price / eps
     payout_ratio           calc_standard_payout_ratio(dividend_per_share, eps)
-    beta,                  carried forward from the ticker's most recent
-    shares_outstanding,    daily metrics document; "fundamentals_as_of"
-    sector, industry       records the date those values were last real
+    beta                   newest beta_history document (calculated monthly
+                           by save_monthly_prices); falls back to the last
+                           stored beta ("beta_source" says which)
+    shares_outstanding,    carried forward from the ticker's most recent
+    sector, industry       daily metrics document; "fundamentals_as_of"
+                           records the date those values were last real
 
 Note: eps here is net income / shares outstanding. OVERVIEW reported diluted
 EPS, which uses a slightly larger share count, so this figure runs a little
@@ -47,6 +50,7 @@ from models.api_utils import check_api_response
 from models.constants import (
     STOCK_TICKERS,
     DAILY_METRICS_COLLECTION,
+    BETA_COLLECTION,
     THROTTLE_SECONDS
 )
 from utilities.dividend_helper import (
@@ -88,6 +92,7 @@ API_KEY = get_api_key()
 collection = get_collection(DAILY_METRICS_COLLECTION)
 dividend_history = get_collection("dividend_history")
 income_statements = get_collection("income_statements")
+beta_history = get_collection(BETA_COLLECTION)
 
 # =========================================================
 # HELPERS
@@ -261,6 +266,17 @@ def get_last_fundamentals(ticker):
     )
 
 
+def get_latest_beta(ticker):
+    """
+    Newest beta calculated by save_monthly_prices, or None.
+    """
+
+    return beta_history.find_one(
+        {"ticker": ticker},
+        sort=[("created_at", -1)]
+    )
+
+
 # =========================================================
 # MAIN
 # =========================================================
@@ -345,6 +361,21 @@ for ticker in tickers:
         )
 
         # -----------------------------------------------------
+        # BETA (calculated monthly, else carried forward)
+        # -----------------------------------------------------
+
+        latest_beta = get_latest_beta(ticker)
+
+        if latest_beta:
+            beta = latest_beta["beta"]
+            beta_as_of = latest_beta["created_at"]
+            beta_source = "beta_history"
+        else:
+            beta = previous.get("beta")
+            beta_as_of = fundamentals_as_of
+            beta_source = "carried_forward"
+
+        # -----------------------------------------------------
         # EPS (from stored income statements, else carried forward)
         # -----------------------------------------------------
 
@@ -373,6 +404,7 @@ for ticker in tickers:
             f"\tPrice={price}\n"
             f"\t\t\t\tDividendPerShare={dividend_per_share}\n"
             f"\t\t\t\tEPS={eps} ({eps_source}, through {eps_through})\n"
+            f"\t\t\t\tBeta={beta} ({beta_source})\n"
             f"\t\t\t\tPayoutRatio={payout_ratio}"
         )
 
@@ -396,7 +428,9 @@ for ticker in tickers:
             "payout_ratio": payout_ratio,
 
             # risk metrics
-            "beta": previous.get("beta"),
+            "beta": beta,
+            "beta_source": beta_source,
+            "beta_as_of": beta_as_of,
 
             # earnings
             "eps": eps,

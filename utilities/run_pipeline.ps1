@@ -59,8 +59,15 @@ switch ($day)
        & $python -m collectors.save_daily_metrics
     }
 
+    # Rotating night: first Wednesday of the month collects monthly
+    # prices and recalculates beta; other Wednesdays collect prices.
     "Wednesday" {
-       & $python -m collectors.save_daily_metrics
+       if ($localNow.Day -le 7) {
+          & $python -m collectors.save_monthly_prices
+       }
+       else {
+          & $python -m collectors.save_daily_metrics
+       }
     }
 
     "Thursday" {
